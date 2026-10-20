@@ -1,3 +1,19 @@
+# Local image workflow (GCP VM + minikube or kind):
+#   1. Build on the VM:
+#        env -u DOCKER_HOST DOCKER_BUILDKIT=1 docker build -t llmops-app:latest .
+#   2. Load into the cluster (pick one):
+#        minikube image load llmops-app:latest
+#        # or: kind load docker-image llmops-app:latest --name <cluster>
+#   3. Create the secret once (keys + model names from .env):
+#        kubectl create secret generic llmops-secrets \
+#          --from-literal=GROQ_API_KEY="$GROQ_API_KEY" \
+#          --from-literal=HUGGING_FACE_API_KEY="$HUGGING_FACE_API_KEY" \
+#          --from-literal=GROQ_MODEL_NAME="${GROQ_MODEL_NAME:-openai/gpt-oss-20b}" \
+#          --from-literal=EMBEDDING_MODEL_NAME="${EMBEDDING_MODEL_NAME:-sentence-transformers/all-MiniLM-L6-v2}"
+#   4. Apply:
+#        kubectl apply -f llmops-k8s.yaml
+#   5. If the Deployment already existed before loading the image:
+#        kubectl rollout restart deployment/llmops-app
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -16,13 +32,14 @@ spec:
     spec:
       containers:
       - name: llmops-container
-        image: llmops-app:latest  # Use local image
-        imagePullPolicy: IfNotPresent
+        # Local-only tag — must be loaded into minikube/kind (not pulled from a registry).
+        image: llmops-app:latest
+        imagePullPolicy: Never
         ports:
           - containerPort: 8501
         envFrom:
           - secretRef:
-              name: llmops-secrets 
+              name: llmops-secrets
 
 ---
 apiVersion: v1

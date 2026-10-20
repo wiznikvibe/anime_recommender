@@ -1,11 +1,11 @@
 # Anime Recommender
 
-A Streamlit application that recommends anime from the repository's synopsis dataset. It retrieves relevant records from a local Chroma vector store and uses the Groq-hosted `llama-3.1-8b-instant` model to produce recommendations.
+A Streamlit application that recommends anime from the repository's synopsis dataset. It retrieves relevant records from a local Chroma vector store and uses Groq-hosted `openai/gpt-oss-20b` to produce recommendations.
 
 ## How it works
 
 1. `pipeline/build_pipeline.py` reads `data/anime_with_synopsis.csv`, validates the expected `Name`, `Genres`, and `sypnopsis` columns, and writes a one-column `data/anime_updated.csv` containing combined title, overview, and genre text.
-2. `src/vector_store.py` loads that processed CSV, splits its documents, embeds them with Hugging Face `all-MiniLM-L6-v2`, and persists the index in `chroma_db/` using Chroma.
+2. `src/vector_store.py` loads that processed CSV, splits its documents, embeds them with Hugging Face `sentence-transformers/all-MiniLM-L6-v2`, and persists the index in `chroma_db/` using Chroma.
 3. `app/app.py` initializes `AnimeRecommendationPipeline` once per Streamlit resource cache. User preferences are passed to a LangChain retrieval QA chain, which retrieves context from Chroma and calls Groq.
 4. The prompt requests exactly three numbered recommendations, with a summary and an explanation of fit, using retrieved context only.
 
@@ -49,13 +49,16 @@ From the repository root:
 uv sync
 ```
 
-Create a `.env` file in the repository root and provide the required Groq credential:
+Create a `.env` file in the repository root (see `.env.example`):
 
 ```dotenv
 GROQ_API_KEY=your_groq_api_key
+HUGGING_FACE_API_KEY=your_huggingface_api_key
+GROQ_MODEL_NAME=openai/gpt-oss-20b
+EMBEDDING_MODEL_NAME=sentence-transformers/all-MiniLM-L6-v2
 ```
 
-`config/config.py` loads this value with `python-dotenv`. The model name is currently fixed in code to `llama-3.1-8b-instant`; it is not read from an environment variable.
+`config/config.py` loads these with `python-dotenv`. `GROQ_MODEL_NAME` selects the Groq chat model (default `openai/gpt-oss-20b`). `EMBEDDING_MODEL_NAME` selects the local Hugging Face embedding model; changing it requires rebuilding `chroma_db/`.
 
 ## Build or rebuild the local index
 
@@ -77,7 +80,7 @@ Enter anime preferences in the text field. For example, the UI suggests “light
 
 ## Dependencies and integrations
 
-The project uses Streamlit for the UI; pandas for CSV processing; LangChain components for retrieval and chain orchestration; ChromaDB for local vector persistence; Hugging Face `all-MiniLM-L6-v2` for embeddings; and Groq's `llama-3.1-8b-instant` model for recommendation text. Dependencies are declared in `pyproject.toml` and locked in `uv.lock`; `requirements.txt` also lists the application dependencies.
+The project uses Streamlit for the UI; pandas for CSV processing; LangChain components for retrieval and chain orchestration; ChromaDB for local vector persistence; Hugging Face `sentence-transformers/all-MiniLM-L6-v2` for embeddings; and Groq's `openai/gpt-oss-20b` for recommendation text. Dependencies are declared in `pyproject.toml` and locked in `uv.lock`; `requirements.txt` also lists the application dependencies.
 
 ## Container and Kubernetes files
 

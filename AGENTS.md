@@ -6,11 +6,11 @@ Guidance for humans and coding agents working in this repository. Contents are b
 
 ## 1. Project purpose and core functionality
 
-**Purpose:** A Streamlit app that recommends anime from a local synopsis dataset. It retrieves relevant records from a persisted Chroma vector store and uses Groq-hosted `llama-3.1-8b-instant` to generate recommendation text.
+**Purpose:** A Streamlit app that recommends anime from a local synopsis dataset. It retrieves relevant records from a persisted Chroma vector store and uses Groq-hosted `openai/gpt-oss-20b` to generate recommendation text.
 
 **Core flow:**
 
-1. **Offline build** (`pipeline/build_pipeline.py`): Read `data/anime_with_synopsis.csv`, validate columns `Name`, `Genres`, and `sypnopsis` (spelling as in the CSV/code), write combined text to `data/anime_updated.csv`, embed with Hugging Face `all-MiniLM-L6-v2`, persist Chroma under `chroma_db/`.
+1. **Offline build** (`pipeline/build_pipeline.py`): Read `data/anime_with_synopsis.csv`, validate columns `Name`, `Genres`, and `sypnopsis` (spelling as in the CSV/code), write combined text to `data/anime_updated.csv`, embed with Hugging Face `sentence-transformers/all-MiniLM-L6-v2`, persist Chroma under `chroma_db/`.
 2. **Runtime** (`app/app.py`): Cache-initialize `AnimeRecommendationPipeline`, take a free-text preference query, run a LangChain `RetrievalQA` chain against the local Chroma retriever and Groq LLM, display the result.
 
 **Not part of the app:** `main.py` only prints a greeting; it does not start Streamlit or the pipeline. There is no separate HTTP API or CLI beyond the Streamlit entrypoint and the build module.
@@ -27,9 +27,9 @@ Guidance for humans and coding agents working in this repository. Contents are b
 | Data | pandas; CSV under `data/` |
 | RAG / orchestration | LangChain ecosystem (`langchain`, `langchain-community`, `langchain-groq`, `langchain-huggingface`, `langchain-text-splitters`) |
 | Vector store | ChromaDB (`langchain_community.vectorstores.Chroma`) |
-| Embeddings | `sentence-transformers` via `HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")` |
-| LLM | Groq `ChatGroq`, model `llama-3.1-8b-instant` (hardcoded in `config/config.py`) |
-| Config | `python-dotenv`; `GROQ_API_KEY` from environment |
+| Embeddings | `sentence-transformers` via `HuggingFaceEmbeddings` (`EMBEDDING_MODEL_NAME`, default `sentence-transformers/all-MiniLM-L6-v2`) |
+| LLM | Groq `ChatGroq`, model `GROQ_MODEL_NAME` / default `openai/gpt-oss-20b` in `config/config.py` |
+| Config | `python-dotenv`; `GROQ_API_KEY`, `HUGGING_FACE_API_KEY`, `GROQ_MODEL_NAME`, `EMBEDDING_MODEL_NAME` from environment |
 | Containers / K8s | `Dockerfile` (Python 3.13.5-slim + uv); `llmops-k8s.yaml` |
 
 **Declared direct dependencies** (`pyproject.toml`):
@@ -48,7 +48,7 @@ Guidance for humans and coding agents working in this repository. Contents are b
 
 ```text
 app/app.py                    Streamlit UI; @st.cache_resource pipeline init
-config/config.py              load_dotenv; GROQ_API_KEY; MODEL_NAME
+config/config.py              load_dotenv; GROQ_API_KEY; MODEL_NAME; EMBEDDING_MODEL_NAME
 data/anime_with_synopsis.csv  Source dataset (includes MAL_ID, Score, etc.)
 data/anime_updated.csv        Processed single-column combined_info CSV
 pipeline/build_pipeline.py    Offline: process CSV + build Chroma index
@@ -115,13 +115,16 @@ User query (Streamlit text_input)
 uv sync
 ```
 
-Create a repository-root `.env` (gitignored):
+Create a repository-root `.env` (gitignored; mirror `.env.example`):
 
 ```dotenv
 GROQ_API_KEY=your_groq_api_key
+HUGGING_FACE_API_KEY=your_huggingface_api_key
+GROQ_MODEL_NAME=openai/gpt-oss-20b
+EMBEDDING_MODEL_NAME=sentence-transformers/all-MiniLM-L6-v2
 ```
 
-`config/config.py` loads `GROQ_API_KEY` via `os.getenv` after `load_dotenv()`. `MODEL_NAME` is fixed to `"llama-3.1-8b-instant"` in code — **not** read from the environment.
+`config/config.py` loads these via `os.getenv` after `load_dotenv()`. `HUGGING_FACE_API_KEY` is also exported as `HF_TOKEN` / `HUGGINGFACEHUB_API_TOKEN` for the Hub client. Changing `EMBEDDING_MODEL_NAME` requires rebuilding `chroma_db/`.
 
 **Rebuild vector index** (from repo root):
 
@@ -210,7 +213,7 @@ Observed patterns in existing code (not a formal style guide):
 3. **Run path-sensitive commands from the repo root** (`data/...`, `chroma_db/`).
 4. **After changing embeddings, chunking, or source CSV,** rebuild with `uv run python -m pipeline.build_pipeline` and confirm `chroma_db/` is updated; the app loads the existing index and will not rebuild on startup.
 5. **Keep `GROQ_API_KEY` out of git.** Use `.env` locally and K8s Secrets (or equivalent) in cluster.
-6. **If changing the LLM or prompt,** update `config/config.py` and/or `src/prompt_template.py` and keep RetrievalQA input variables (`context`, `question`) consistent with the chain.
+6. **If changing the LLM or prompt,** update `config/config.py` (or `GROQ_MODEL_NAME`) and/or `src/prompt_template.py` and keep RetrievalQA input variables (`context`, `question`) consistent with the chain.
 7. **If touching `langchain_classic` imports,** verify the dependency still resolves (today via `langchain-community`); consider declaring it directly if the import remains.
 8. **`main.py` is not the app entrypoint** — do not assume changes there affect Streamlit behavior.
 9. **Prefer minimal diffs** aligned with existing exception/logging patterns (`AnimeRecommendationException`, `src.utils.logger`).
@@ -221,6 +224,6 @@ Observed patterns in existing code (not a formal style guide):
 - Lint or format commands
 - Automated tests
 - CI/CD pipelines
-- Non-Groq model configuration via env
+- Non-Groq LLM providers (embedding model name is env-configurable; chat is Groq-only)
 - API server or production auth layer
 - Official contribution/PR process beyond what is in `README.md`

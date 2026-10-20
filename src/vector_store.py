@@ -6,7 +6,8 @@ from langchain_community.vectorstores import Chroma
 from langchain_text_splitters import CharacterTextSplitter
 from langchain_community.document_loaders.csv_loader import CSVLoader
 from langchain_huggingface import HuggingFaceEmbeddings
-from dotenv import load_dotenv 
+from dotenv import load_dotenv
+from config.config import EMBEDDING_MODEL_NAME
 
 load_dotenv()
 
@@ -14,8 +15,8 @@ class VectorStoreBuilder:
     def __init__(self, csv_path: str, persist_dir: str="chroma_db"):
         self.csv_path = csv_path
         self.persist_dir = persist_dir
-        self.embedding_generator = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-        
+        self.embedding_generator = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME)
+
     def build_and_save_vector_store(self):
         try:
             logging.info("Building a new vector store")
