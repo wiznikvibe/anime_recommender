@@ -11,6 +11,7 @@ class AnimeRecommendationPipeline:
     def __init__(self, persist_dir="chroma_db"):
         try:
             logging.info("Initializing the Recommendation Engine")
+            logging.info(f"Using Groq model: {MODEL_NAME}")
             vector_builder = VectorStoreBuilder(csv_path="", persist_dir=persist_dir)
             retriever = vector_builder.load_vector_store().as_retriever()
             self.recommender = AnimeRecommender(retriever=retriever, api_key=GROQ_API_KEY, model_name=MODEL_NAME)
