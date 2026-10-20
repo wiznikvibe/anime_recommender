@@ -81,12 +81,19 @@ The project uses Streamlit for the UI; pandas for CSV processing; LangChain comp
 
 ## Container and Kubernetes files
 
-The `Dockerfile` installs the project using uv, exposes port `8501`, and starts Streamlit on `0.0.0.0:8501`. Build and run from the repository root:
+The multi-stage `Dockerfile` installs a **CPU-only** PyTorch wheel (via `uv` + the PyTorch CPU index), copies the app and `chroma_db/`, exposes port `8501`, and starts Streamlit on `0.0.0.0:8501`. Using the default CUDA PyPI torch wheel produces a multi‑GB image that often stalls at Docker “unpacking” on small GCP VMs.
+
+Build and run from the repository root (or use Compose on a VM):
 
 ```sh
-docker build -t anime-recommender .
-docker run --rm -p 8501:8501 --env-file .env anime-recommender
+DOCKER_BUILDKIT=1 docker build -t llmops-app:latest .
+docker run --rm -p 8501:8501 --env-file .env llmops-app:latest
+
+# GCP VM / local Compose alternative
+docker compose up -d --build
 ```
+
+Expect first-run downloads of the Hugging Face embedding model into the container cache (Compose mounts a named volume for this).
 
 The checked-in `llmops-k8s.yaml` defines a one-replica Deployment and a `LoadBalancer` Service. It expects an image named `llmops-app:latest` and a Kubernetes Secret named `llmops-secrets` whose keys are provided to the container as environment variables. The manifest does not define image-building/publishing steps or create that Secret; configure those for your cluster before applying it. Ensure the image includes or otherwise has access to the `chroma_db/` data required by the app.
 

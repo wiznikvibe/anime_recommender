@@ -20,7 +20,20 @@ dependencies = [
     "python-dotenv>=1.2.1",
     "sentence-transformers>=5.2.0",
     "streamlit>=1.52.2",
+    # Declared directly so tool.uv.sources can pin the CPU wheel (transitive
+    # torch from sentence-transformers alone would pull CUDA + nvidia-* on Linux).
+    "torch>=2.9.1",
 ]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src", "pipeline", "app", "config"]
+
+# CPU-only PyTorch: embeddings do not need CUDA. Default PyPI wheels pull
+# ~6GB of nvidia-* packages on Linux x86_64 and stall Docker export/unpack on VMs.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
