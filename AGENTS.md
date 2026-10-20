@@ -190,7 +190,7 @@ Observed patterns in existing code (not a formal style guide):
 - Install: `uv sync --frozen --no-dev` (lockfile); copies `app/`, `config/`, `pipeline/`, `src/`, `data/`, `chroma_db/`
 - Exposes `8501`; healthcheck on `/_stcore/health`
 - CMD: `streamlit run app/app.py --server.port=8501 --server.address=0.0.0.0 --server.headless=true`
-- VM path: `docker compose up -d --build` (image tag `llmops-app:latest`)
+- VM path: prefix Docker with `env -u DOCKER_HOST` so the local daemon is used, e.g. `env -u DOCKER_HOST DOCKER_BUILDKIT=1 docker build -t llmops-app:latest .` or `env -u DOCKER_HOST docker compose up -d --build`
 
 **Kubernetes (`llmops-k8s.yaml`):**
 

@@ -1,8 +1,8 @@
 # Local / GCP VM deployment (no Kubernetes required).
-# Usage on the VM:
+# Usage on the VM (unset DOCKER_HOST so the local daemon is used):
 #   cp .env.example .env   # then set GROQ_API_KEY
-#   docker compose up -d --build
-#   docker compose logs -f
+#   env -u DOCKER_HOST docker compose up -d --build
+#   env -u DOCKER_HOST docker compose logs -f
 services:
   app:
     build:

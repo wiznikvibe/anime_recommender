@@ -83,15 +83,19 @@ The project uses Streamlit for the UI; pandas for CSV processing; LangChain comp
 
 The multi-stage `Dockerfile` installs a **CPU-only** PyTorch wheel (via `uv` + the PyTorch CPU index), copies the app and `chroma_db/`, exposes port `8501`, and starts Streamlit on `0.0.0.0:8501`. Using the default CUDA PyPI torch wheel produces a multi‑GB image that often stalls at Docker “unpacking” on small GCP VMs.
 
-Build and run from the repository root (or use Compose on a VM):
+Build and run from the repository root (or use Compose on a VM).
+
+On the GCP VM, unset `DOCKER_HOST` so the build uses the instance’s local Docker daemon (not a remote/desktop host):
 
 ```sh
-DOCKER_BUILDKIT=1 docker build -t llmops-app:latest .
-docker run --rm -p 8501:8501 --env-file .env llmops-app:latest
+env -u DOCKER_HOST DOCKER_BUILDKIT=1 docker build -t llmops-app:latest .
+env -u DOCKER_HOST docker run --rm -p 8501:8501 --env-file .env llmops-app:latest
 
-# GCP VM / local Compose alternative
-docker compose up -d --build
+# Compose alternative (same DOCKER_HOST unset)
+env -u DOCKER_HOST docker compose up -d --build
 ```
+
+Omit `--no-cache` on rebuilds so dependency layers can reuse the CPU-torch install; use `--no-cache` only when you need a fully clean rebuild.
 
 Expect first-run downloads of the Hugging Face embedding model into the container cache (Compose mounts a named volume for this).
 
